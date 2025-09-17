@@ -277,7 +277,7 @@ def show_login_register():
 # If no users exist, show admin-setup on first run
 if user_count() == 0:
     st.title("First-time setup — create admin account")
-    st.write("No users found. Please create the admin (your friend) account.")
+    st.write("No users found. Please create the admin  account.")
     with st.form("admin_setup"):
         admin_name = st.text_input("Admin name")
         admin_email = st.text_input("Admin email")
