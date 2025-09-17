@@ -11,8 +11,15 @@ import os
 # ---------------------------
 # Database & helper functions
 # ---------------------------
-DB_URL = os.getenv("DATABASE_URL")  # will come from Streamlit Secrets
-conn = psycopg2.connect(DB_URL)
+db_conf = st.secrets["database"]
+
+conn = psycopg2.connect(
+    host=db_conf["host"],
+    dbname=db_conf["dbname"],
+    user=db_conf["user"],
+    password=db_conf["password"],
+    port=db_conf["port"]
+)
 c = conn.cursor()
 
 def init_db():
