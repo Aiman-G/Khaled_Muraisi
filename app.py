@@ -8,18 +8,13 @@ import smtplib
 from email.message import EmailMessage
 import psycopg2
 import os
+from st_supabase_connection import SupabaseConnection
 # ---------------------------
 # Database & helper functions
 # ---------------------------
 db_conf = st.secrets["database"]
 
-conn = psycopg2.connect(
-    host=db_conf["host"],
-    dbname=db_conf["dbname"],
-    user=db_conf["user"],
-    password=db_conf["password"],
-    port=db_conf["port"]
-)
+conn = st.connection("supabase",type=SupabaseConnection)
 c = conn.cursor()
 
 def init_db():
