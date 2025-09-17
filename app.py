@@ -379,7 +379,7 @@ if user['is_admin']:
                 if sel > 0:
                     remove_slot(int(sel))
                     st.success(f"Deleted slot {sel}")
-                    st.experimental_rerun()
+                    st.rerun()
         else:
             st.write("No upcoming slots")
 
