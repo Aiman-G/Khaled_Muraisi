@@ -1,2 +1,7 @@
+streamlit
 sqlite3
 psycopg2
+hashlib
+smtplib
+pandas
+email
