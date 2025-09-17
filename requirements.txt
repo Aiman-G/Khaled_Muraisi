@@ -1,6 +1,4 @@
 streamlit
 psycopg2-binary
-hashlib
+pandas 
 smtplib
-pandas
-email
