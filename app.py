@@ -6,12 +6,13 @@ from datetime import datetime, date, time, timedelta
 import hashlib, secrets, binascii
 import smtplib
 from email.message import EmailMessage
-
+import psycopg2
+import os
 # ---------------------------
 # Database & helper functions
 # ---------------------------
-DB_PATH = "appointments.db"
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+DB_URL = os.getenv("DATABASE_URL")  # will come from Streamlit Secrets
+conn = psycopg2.connect(DB_URL)
 c = conn.cursor()
 
 def init_db():
@@ -78,7 +79,7 @@ def verify_password(password: str, salt_hex: str, hash_hex: str):
 def create_user(name, email, password, is_admin=False):
     salt, pw_hash = hash_password(password)
     try:
-        c.execute("INSERT INTO users (name,email,salt,pw_hash,is_admin) VALUES (?,?,?,?,?)",
+        c.execute("INSERT INTO users (name,email,salt,pw_hash,is_admin) VALUES (%s,%s,%s,%s,%s)",
                   (name, email, salt, pw_hash, 1 if is_admin else 0))
         conn.commit()
         return True, "User created"
@@ -86,7 +87,7 @@ def create_user(name, email, password, is_admin=False):
         return False, "Email already registered"
 
 def get_user_by_email(email):
-    c.execute("SELECT id,name,email,salt,pw_hash,is_admin FROM users WHERE email=?", (email,))
+    c.execute("SELECT id,name,email,salt,pw_hash,is_admin FROM users WHERE email=%s", (email,))
     row = c.fetchone()
     if not row:
         return None
@@ -108,11 +109,11 @@ def user_count():
 # Settings
 # ---------------------------
 def set_setting(key, value):
-    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)", (key, value))
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (%s,%s)", (key, value))
     conn.commit()
 
 def get_setting(key, default=None):
-    c.execute("SELECT value FROM settings WHERE key=?", (key,))
+    c.execute("SELECT value FROM settings WHERE key=%s", (key,))
     row = c.fetchone()
     return row[0] if row else default
 
@@ -120,14 +121,14 @@ def get_setting(key, default=None):
 # Slots & bookings
 # ---------------------------
 def create_slot(start_dt: datetime, end_dt: datetime, capacity: int, created_by):
-    c.execute("INSERT INTO slots (start_ts,end_ts,capacity,created_by) VALUES (?,?,?,?)",
+    c.execute("INSERT INTO slots (start_ts,end_ts,capacity,created_by) VALUES (%s,%s,%s,%s)",
               (start_dt.isoformat(), end_dt.isoformat(), capacity, created_by))
     conn.commit()
 
 def get_slots_by_date(d: date):
     start_day = datetime.combine(d, time.min).isoformat()
     end_day = datetime.combine(d, time.max).isoformat()
-    c.execute("SELECT id,start_ts,end_ts,capacity,created_by FROM slots WHERE start_ts BETWEEN ? AND ? ORDER BY start_ts", (start_day, end_day))
+    c.execute("SELECT id,start_ts,end_ts,capacity,created_by FROM slots WHERE start_ts BETWEEN %s AND %s ORDER BY start_ts", (start_day, end_day))
     rows = c.fetchall()
     slots = []
     for r in rows:
@@ -142,35 +143,35 @@ def get_slots_by_date(d: date):
     return slots
 
 def slot_available_seats(slot_id, capacity):
-    c.execute("SELECT COUNT(*) FROM bookings WHERE slot_id=? AND status='booked'", (slot_id,))
+    c.execute("SELECT COUNT(*) FROM bookings WHERE slot_id=%s AND status='booked'", (slot_id,))
     cnt = c.fetchone()[0]
     return max(0, capacity - cnt)
 
 def remove_slot(slot_id):
-    c.execute("DELETE FROM bookings WHERE slot_id=?", (slot_id,))
-    c.execute("DELETE FROM slots WHERE id=?", (slot_id,))
+    c.execute("DELETE FROM bookings WHERE slot_id=%s", (slot_id,))
+    c.execute("DELETE FROM slots WHERE id=%s", (slot_id,))
     conn.commit()
 
 def book_slot(slot_id, user_id, name, email, phone, notes):
     # Check capacity
-    c.execute("SELECT capacity FROM slots WHERE id=?", (slot_id,))
+    c.execute("SELECT capacity FROM slots WHERE id=%s", (slot_id,))
     row = c.fetchone()
     if not row:
         return False, "Slot not found"
     capacity = row[0]
-    c.execute("SELECT COUNT(*) FROM bookings WHERE slot_id=? AND status='booked'", (slot_id,))
+    c.execute("SELECT COUNT(*) FROM bookings WHERE slot_id=%s AND status='booked'", (slot_id,))
     booked = c.fetchone()[0]
     if booked >= capacity:
         return False, "Slot is full"
 
     # Prevent same user booking same slot twice (optional)
-    c.execute("SELECT COUNT(*) FROM bookings WHERE slot_id=? AND user_id=? AND status='booked'", (slot_id, user_id))
+    c.execute("SELECT COUNT(*) FROM bookings WHERE slot_id=%s AND user_id=%s AND status='booked'", (slot_id, user_id))
     if c.fetchone()[0] > 0:
         return False, "You already have a booking for this slot"
 
     c.execute("""INSERT INTO bookings
                  (slot_id,user_id,name,email,phone,notes,status)
-                 VALUES (?,?,?,?,?,?,?)""",
+                 VALUES (%s,%s,%s,%s,%s,%s,%s)""",
               (slot_id, user_id, name, email, phone, notes, 'booked'))
     conn.commit()
     return True, "Booked"
@@ -181,7 +182,7 @@ def list_bookings(admin_only=False, admin_id=None):
            FROM bookings b JOIN slots s ON b.slot_id = s.id"""
     params = ()
     if admin_only and admin_id is not None:
-        q += " WHERE s.created_by = ?"
+        q += " WHERE s.created_by = %s"
         params = (admin_id,)
     q += " ORDER BY s.start_ts"
     c.execute(q, params)
@@ -203,7 +204,7 @@ def list_bookings(admin_only=False, admin_id=None):
     return items
 
 def cancel_booking(booking_id):
-    c.execute("UPDATE bookings SET status='canceled' WHERE id=?", (booking_id,))
+    c.execute("UPDATE bookings SET status='canceled' WHERE id=%s", (booking_id,))
     conn.commit()
 
 # ---------------------------
