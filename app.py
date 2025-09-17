@@ -290,7 +290,7 @@ if user_count() == 0:
                 ok, msg = create_user(admin_name.strip(), admin_email.strip().lower(), admin_pw, is_admin=True)
                 if ok:
                     st.success("Admin created — please log in using the sidebar")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(msg)
     st.stop()
