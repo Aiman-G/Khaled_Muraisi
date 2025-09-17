@@ -12,7 +12,7 @@ from st_supabase_connection import SupabaseConnection
 # ---------------------------
 # Database & helper functions
 # ---------------------------
-db_conf = st.secrets["supabase"]
+
 
 conn = st.connection("supabase",type=SupabaseConnection)
 c = conn.cursor()
