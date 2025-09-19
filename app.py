@@ -260,19 +260,53 @@ if user:  # logged-in
         st.header("Admin dashboard")
         tabs = st.tabs(["Manage Availability", "Bookings", "Settings"])
 
+        # -------- Manage Availability --------
         with tabs[0]:
             st.subheader("Create availability slots")
-            # Add your slot creation form here
+            with st.form("create_slot_form"):
+                start_dt = st.date_input("Start date", date.today())
+                start_time = st.time_input("Start time", time(hour=9, minute=0))
+                end_dt = st.date_input("End date", date.today())
+                end_time = st.time_input("End time", time(hour=10, minute=0))
+                capacity = st.number_input("Capacity", min_value=1, value=1)
+                submitted = st.form_submit_button("Create Slot")
+                if submitted:
+                    start = datetime.combine(start_dt, start_time)
+                    end = datetime.combine(end_dt, end_time)
+                    create_slot(start, end, capacity, user['id'])
+                    st.success("Slot created!")
 
+        # -------- Bookings --------
         with tabs[1]:
             st.subheader("Bookings")
-            # List bookings (use list_bookings(admin_only=True, admin_id=user['id']))
+            bookings = list_bookings(admin_only=True, admin_id=user['id'])
+            if bookings:
+                for b in bookings:
+                    st.write(f"{b['start'].strftime('%Y-%m-%d %H:%M')} — {b['name']} ({b['email']}) [{b['status']}]")
+                    if b['status'] != "canceled":
+                        if st.button(f"Cancel {b['name']}'s booking", key=f"cancel_{b['id']}"):
+                            cancel_booking(b['id'])
+                            st.success("Booking canceled")
+            else:
+                st.info("No bookings yet")
 
+        # -------- Settings --------
         with tabs[2]:
             st.subheader("Settings")
-            # Show SMTP settings form if needed
+            smtp_host = st.text_input("SMTP host", get_setting("smtp_host") or "")
+            smtp_port = st.text_input("SMTP port", get_setting("smtp_port") or "")
+            smtp_user = st.text_input("SMTP username", get_setting("smtp_user") or "")
+            smtp_pass = st.text_input("SMTP password", get_setting("smtp_pass") or "", type="password")
+            from_email = st.text_input("From email", get_setting("from_email") or "")
+            if st.button("Save settings"):
+                set_setting("smtp_host", smtp_host)
+                set_setting("smtp_port", smtp_port)
+                set_setting("smtp_user", smtp_user)
+                set_setting("smtp_pass", smtp_pass)
+                set_setting("from_email", from_email)
+                st.success("Settings saved")
 
-    else:
+    else:  # regular user
         st.header("Book an appointment")
         for i in range(7):
             d = date.today() + timedelta(days=i)
@@ -281,12 +315,16 @@ if user:  # logged-in
                 st.markdown(f"**{d.isoformat()}**")
                 for s in slots:
                     if s['available'] > 0:
-                        if st.button(f"Book {s['start'].time().strftime('%H:%M')} — {s['end'].time().strftime('%H:%M')}", key=f"slot_{s['id']}"):
-                            ok, msg = book_slot(s['id'], user['id'], user['name'], user['email'], "", "")
-                            if ok:
-                                st.success(msg)
-                            else:
-                                st.error(msg)
+                        with st.form(f"book_slot_{s['id']}"):
+                            phone = st.text_input("Phone", key=f"phone_{s['id']}")
+                            notes = st.text_area("Notes", key=f"notes_{s['id']}")
+                            submitted = st.form_submit_button(f"Book {s['start'].time().strftime('%H:%M')} — {s['end'].time().strftime('%H:%M')}")
+                            if submitted:
+                                ok, msg = book_slot(s['id'], user['id'], user['name'], user['email'], phone, notes)
+                                if ok:
+                                    st.success(msg)
+                                else:
+                                    st.error(msg)
                     else:
                         st.write(f"{s['start'].time().strftime('%H:%M')} — {s['end'].time().strftime('%H:%M')} (Full)")
             else:
@@ -304,6 +342,9 @@ else:
         else:
             st.markdown(f"**{d.isoformat()}** — _No slots_")
     st.info("Log in to book a slot.")
+
+
+
 
 
 # Main app content
