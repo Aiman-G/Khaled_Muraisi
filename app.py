@@ -291,6 +291,19 @@ if user:  # logged-in
                     st.success("Slot created")
                     st.rerun()  # reload page so new slot shows up
 
+        st.subheader("Existing slots")
+        slots = get_slots_by_date(date.today())  # or fetch multiple days if you want
+        if slots:
+            for s in slots:
+                st.write(f"{s['start']} — {s['end']} | Capacity: {s['capacity']} | Available: {s['available']}")
+                if st.button(f"Remove slot {s['id']}", key=f"remove_{s['id']}"):
+                    remove_slot(s['id'])
+                    st.success("Slot removed")
+                    st.experimental_rerun()
+        else:
+            st.write("No slots created yet.")
+
+
 
         # -------- Bookings --------
         with tabs[1]:
