@@ -253,6 +253,59 @@ if user_count() == 0:
 
 show_login_register()
 
+user = st.session_state['user']
+
+if user:  # logged-in
+    if user['is_admin']:
+        st.header("Admin dashboard")
+        tabs = st.tabs(["Manage Availability", "Bookings", "Settings"])
+
+        with tabs[0]:
+            st.subheader("Create availability slots")
+            # Add your slot creation form here
+
+        with tabs[1]:
+            st.subheader("Bookings")
+            # List bookings (use list_bookings(admin_only=True, admin_id=user['id']))
+
+        with tabs[2]:
+            st.subheader("Settings")
+            # Show SMTP settings form if needed
+
+    else:
+        st.header("Book an appointment")
+        for i in range(7):
+            d = date.today() + timedelta(days=i)
+            slots = get_slots_by_date(d)
+            if slots:
+                st.markdown(f"**{d.isoformat()}**")
+                for s in slots:
+                    if s['available'] > 0:
+                        if st.button(f"Book {s['start'].time().strftime('%H:%M')} — {s['end'].time().strftime('%H:%M')}", key=f"slot_{s['id']}"):
+                            ok, msg = book_slot(s['id'], user['id'], user['name'], user['email'], "", "")
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
+                    else:
+                        st.write(f"{s['start'].time().strftime('%H:%M')} — {s['end'].time().strftime('%H:%M')} (Full)")
+            else:
+                st.markdown(f"**{d.isoformat()}** — _No slots_")
+else:
+    # Public availability for visitors (not logged in)
+    st.subheader("Public availability (next 7 days)")
+    for i in range(7):
+        d = date.today() + timedelta(days=i)
+        slots = get_slots_by_date(d)
+        if slots:
+            st.markdown(f"**{d.isoformat()}**")
+            for s in slots:
+                st.write(f"- {s['start'].time().strftime('%H:%M')} — {s['end'].time().strftime('%H:%M')} (available: {s['available']})")
+        else:
+            st.markdown(f"**{d.isoformat()}** — _No slots_")
+    st.info("Log in to book a slot.")
+
+
 # Main app content
 st.title("Appointments & Booking")
 st.markdown("Use the sidebar to log in or register. Once logged in you can book appointments. If you're the admin, you can create availability and export bookings.")
