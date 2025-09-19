@@ -144,20 +144,34 @@ def book_slot(slot_id, user_id, name, email, phone, notes):
     return True, "Booked"
 
 def list_bookings(admin_only=False, admin_id=None):
-    q = """
-    select b.id, b.slot_id, s.start_ts, s.end_ts, b.name, b.email, b.phone, b.notes, b.status, b.created_at
-    from bookings b
-    join slots s on b.slot_id = s.id
-    """
+    # Get slots first (admin-created or all)
     if admin_only and admin_id:
-        q += f" where s.created_by = {admin_id}"
-    q += " order by s.start_ts"
-    res = conn.query(q).execute()
-    # convert start/end to datetime
-    for r in res.data:
-        r['start'] = datetime.fromisoformat(r.pop('start_ts'))
-        r['end'] = datetime.fromisoformat(r.pop('end_ts'))
-    return res.data
+        slots_res = conn.table("slots").select("*").eq("created_by", admin_id).execute()
+    else:
+        slots_res = conn.table("slots").select("*").execute()
+    slots = {s['id']: s for s in slots_res.data}
+
+    # Get bookings
+    bookings_res = conn.table("bookings").select("*").execute()
+    bookings = []
+    for b in bookings_res.data:
+        slot = slots.get(b['slot_id'])
+        if slot:
+            bookings.append({
+                "id": b["id"],
+                "slot_id": b["slot_id"],
+                "start": datetime.fromisoformat(slot["start_ts"]),
+                "end": datetime.fromisoformat(slot["end_ts"]),
+                "name": b["name"],
+                "email": b["email"],
+                "phone": b["phone"],
+                "notes": b["notes"],
+                "status": b["status"],
+                "created_at": b.get("created_at")
+            })
+    bookings.sort(key=lambda x: x['start'])
+    return bookings
+
 
 def cancel_booking(booking_id):
     conn.table("bookings").update({"status": "canceled"}).eq("id", booking_id).execute()
