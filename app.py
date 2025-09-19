@@ -289,7 +289,7 @@ if user:  # logged-in
                     end_datetime = datetime.combine(end_dt, end_time)
                     create_slot(start_datetime, end_datetime, capacity, user['id'])
                     st.success("Slot created")
-                    st.experimental_rerun()  # reload page so new slot shows up
+                    st.rerun()  # reload page so new slot shows up
 
 
         # -------- Bookings --------
