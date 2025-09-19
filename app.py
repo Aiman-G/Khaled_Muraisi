@@ -278,17 +278,19 @@ if user:  # logged-in
         with tabs[0]:
             st.subheader("Create availability slots")
             with st.form("create_slot_form"):
-                start_dt = st.date_input("Start date", date.today())
-                start_time = st.time_input("Start time", time(hour=9, minute=0))
-                end_dt = st.date_input("End date", date.today())
-                end_time = st.time_input("End time", time(hour=10, minute=0))
+                start_dt = st.date_input("Start date", value=date.today())
+                start_time = st.time_input("Start time", value=time(hour=9))
+                end_dt = st.date_input("End date", value=date.today())
+                end_time = st.time_input("End time", value=time(hour=10))
                 capacity = st.number_input("Capacity", min_value=1, value=1)
                 submitted = st.form_submit_button("Create Slot")
                 if submitted:
-                    start = datetime.combine(start_dt, start_time)
-                    end = datetime.combine(end_dt, end_time)
-                    create_slot(start, end, capacity, user['id'])
-                    st.success("Slot created!")
+                    start_datetime = datetime.combine(start_dt, start_time)
+                    end_datetime = datetime.combine(end_dt, end_time)
+                    create_slot(start_datetime, end_datetime, capacity, user['id'])
+                    st.success("Slot created")
+                    st.experimental_rerun()  # reload page so new slot shows up
+
 
         # -------- Bookings --------
         with tabs[1]:
